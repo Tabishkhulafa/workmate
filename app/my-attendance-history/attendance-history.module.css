@@ -1,0 +1,307 @@
+.page{display:grid;gap:22px;max-width:1170px;margin:0 auto;color:#171a25}
+.hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:8px 0 4px}
+.eyebrow,.kicker{font-size:11px;letter-spacing:.13em;color:#66758f;font-weight:850}
+.hero h1{font-size:clamp(29px,3.3vw,42px);letter-spacing:-.055em;line-height:1.12;margin:10px 0 12px}
+.hero p{font-size:15px;line-height:1.6;color:#657083;max-width:690px;margin:0}
+.heroMark{width:102px;height:94px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:25px;background:linear-gradient(140deg,#263e91,#7460da);color:#fff;font-weight:900;font-size:26px;letter-spacing:-.07em;box-shadow:0 12px 24px #4c54b333}
+.heroMark span{font-size:10px;letter-spacing:.13em;text-transform:uppercase;font-weight:750;margin-top:3px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid #dfe4ed;padding:0 4px}
+.tabs a{display:flex;align-items:center;min-height:43px;padding:10px 16px;border-radius:12px 12px 0 0;font-weight:750;font-size:14px;color:#687389;transition:color .12s,background .12s;position:relative}
+.tabs a:hover{color:#314b9d;background:#eaf0fc}
+.tabs a.activeTab{color:#3049a3;background:#eaf0ff}
+.tabs a.activeTab:after{content:"";position:absolute;bottom:-1px;left:12px;right:12px;height:3px;background:#456ad6;border-radius:5px}
+.toolbar,.records{background:#fff;border:1px solid #e4e7ee;border-radius:23px;box-shadow:0 9px 30px rgba(25,36,64,.035)}
+.toolbar{padding:23px 26px 20px}
+.sectionHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sectionHeading h2{font-size:23px;letter-spacing:-.035em;margin:5px 0 0}
+.datePill{display:inline-flex;padding:9px 12px;border-radius:999px;border:1px solid #dae2f7;background:#f5f8ff;color:#4d638a;font-size:12px;font-weight:750}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:end;gap:12px;margin-top:18px}
+.filters label{font-size:12px;color:#4d5566;margin:0;font-weight:750;min-width:0}
+.filters input,.filters select{appearance:auto;display:block;width:100%;height:46px;margin-top:7px;padding:0 12px;background:#fff;border:1px solid #d9dee9;border-radius:12px;color:#242b3e;font:inherit;font-size:13px;min-width:0}
+.filters input:focus,.filters select:focus{outline:3px solid #abc4fa;border-color:#5677d0}
+.applyButton{min-height:46px;border-radius:12px;background:#202638;color:#fff;font-weight:800;padding:10px 13px;white-space:nowrap}
+.applyButton:hover{background:#344373}
+.helper{color:#808a9b;font-size:12px;margin:13px 0 0;line-height:1.55}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.overallStat,.stat{display:flex;flex-direction:column;gap:9px;min-height:139px;border-radius:20px;padding:20px 21px;background:#fff;border:1px solid #e6eaf1;box-shadow:0 5px 15px rgba(30,40,70,.025)}
+.overallStat{background:linear-gradient(135deg,#2c354f,#46578c);color:#fff;border-color:transparent}
+.stat{transition:box-shadow .12s,transform .12s}
+.stat:hover{box-shadow:0 12px 23px rgba(38,57,96,.08);transform:translateY(-1px)}
+.overallStat>span,.stat>span{font-weight:800;font-size:12px}
+.overallStat strong,.stat strong{font-size:33px;letter-spacing:-.055em;font-weight:850;line-height:1}
+.overallStat small,.stat small{font-size:11px;font-weight:600;opacity:.8;margin-top:auto}
+.present{background:#ebfaf1;color:#157347;border-color:#d3efde}.half{background:#fff7e7;color:#975b13;border-color:#f6e5be}.absent{background:#fff0f0;color:#b72e39;border-color:#f5d7d8}.progress{background:#ecf5ff;color:#225db2;border-color:#d9e9fa}.neutral{background:#f3f5f9;color:#58677a;border-color:#e6e8ee}.missing{background:#fff2e8;color:#a04b22;border-color:#f6e1ce}.holiday{background:#eeeafd;color:#6045ae;border-color:#ddd4f9}
+.insightRow{display:flex;align-items:center;gap:12px 24px;flex-wrap:wrap;color:#62718a;font-size:12px;padding:1px 4px 2px}
+.insightRow strong{font-size:14px;color:#273146}
+.records{padding:0;scroll-margin-top:25px;overflow:hidden}
+.recordHeader{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:24px 25px 20px}
+.recordHeader h2{font-size:22px;letter-spacing:-.035em;margin:5px 0 4px}
+.recordHeader p{margin:0;color:#7e8796;font-size:12px}
+.clear{display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border-radius:12px;border:1px solid #d9e2f2;color:#3a5596;font-size:12px;font-weight:800}
+.clear:hover{background:#f0f5fe}
+.desktopTable{width:100%;overflow-x:auto}
+.table{width:100%;border-collapse:separate;border-spacing:0;text-align:left;white-space:nowrap;min-width:750px;font-size:13px}
+.table th{padding:14px 17px;background:#f7f9fc;color:#64728a;font-size:11px;letter-spacing:.055em;text-transform:uppercase;font-weight:850;border-bottom:1px solid #e5eaf1}
+.table td{padding:17px;border-bottom:1px solid #edf0f5;color:#485369;vertical-align:middle}
+.table tbody tr:last-child td{border-bottom:0}
+.table tbody tr:hover td{background:#fbfcff}
+.table td small{display:block;color:#8490a2;font-size:11px;margin-top:5px}
+.emphasis,.employeeName{font-weight:800!important;color:#273248!important}
+.statusBadge{display:inline-flex;align-items:center;justify-content:center;width:max-content;max-width:100%;min-height:27px;border-radius:999px;font-size:11px;font-weight:850;padding:6px 11px;border-width:1px;border-style:solid;white-space:nowrap}
+.statusBadge:before{content:"";display:block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:7px;flex:none}
+.mobileList{display:none}
+.empty{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;text-align:center;min-height:220px;padding:20px;border-top:1px solid #edf0f5;color:#67758b}
+.empty>span{font-size:45px;color:#8a9ac5}
+.empty strong{font-size:18px;color:#303e58}.empty p{font-size:13px;max-width:410px;line-height:1.5;margin:0}
+.footnote{margin:0 4px 5px;color:#8b93a2;font-size:12px;line-height:1.5}
+.error{border-radius:15px;border:1px solid #f3ced2;background:#fff4f5;color:#9b2633;padding:17px 19px;font-size:14px;font-weight:650}
+@media(max-width:1050px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.page{gap:15px}.hero{align-items:flex-start}.hero h1{font-size:30px}.heroMark{display:none}.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding:0}.tabs a{white-space:nowrap;font-size:13px;padding:10px 12px}.toolbar{padding:17px 16px}.sectionHeading h2{font-size:20px}.datePill{font-size:11px}.filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.filters input,.filters select{font-size:13px}.applyButton{grid-column:1/-1}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.overallStat,.stat{min-height:116px;padding:15px 14px;border-radius:15px}.overallStat strong,.stat strong{font-size:28px}.recordHeader{padding:20px 16px 16px}.desktopTable{display:none}.mobileList{display:grid;gap:10px;padding:0 12px 13px}.mobileCard{border-radius:16px;border:1px solid #e6eaf1;padding:15px;background:#fbfcfe;display:grid;gap:13px}.mobileTop{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.mobileTop strong{color:#243046;font-size:14px}.mobileTop small{display:block;color:#7a8698;font-size:11px;margin-top:4px}.punchGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.punchGrid>div{background:#fff;border:1px solid #e9edf3;border-radius:11px;padding:11px;display:grid;gap:7px;min-width:0}.punchGrid span{font-size:11px;color:#8290a1}.punchGrid strong{font-size:13px;color:#29384f;overflow-wrap:anywhere}.mobileBottom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid #e6ebf3;padding-top:11px}.mobileBottom span{display:flex;flex-direction:column;gap:4px;color:#8793a3;font-size:10px}.mobileBottom strong{color:#344258;font-size:11px;overflow-wrap:anywhere}.insightRow{gap:8px 16px}}
+@media(max-width:385px){.filters{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.statusBadge{font-size:10px;padding:6px 8px}}
+
+/* Read-only clock-in location marker. No changes to attendance statuses. */
+.clockInSite{display:grid;justify-items:start;gap:4px;margin-top:5px;white-space:normal;max-width:205px}
+.clockInSiteName{font-size:11px;line-height:1.35;color:#65718b;font-weight:650;overflow-wrap:anywhere}
+.offSiteBadge{font-size:10px;line-height:1.3;letter-spacing:.01em;color:#9a4a14;background:#fff2e4;border:1px solid #f1d7ba;border-radius:8px;font-weight:800;padding:4px 7px;white-space:nowrap}
+.mobileCard .clockInSite{margin-top:0;max-width:100%}
+.mobileCard .offSiteBadge{white-space:normal}
+
+/* Work Mate mobile attendance history — 2026-10-26.
+   Presentation-only: date filters, status counts and attendance queries unchanged. */
+.page,
+.page > *,
+.toolbar,
+.records {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.filters,
+.filters > label {
+  min-width: 0;
+}
+.filters > input[type="hidden"] {
+  display: none !important;
+}
+.filters input,
+.filters select,
+.filters button {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+/* Native iOS date controls must not impose intrinsic minimum widths. */
+.filters input[type="date"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  color-scheme: light;
+}
+.filters input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+.filters input[type="date"]::-webkit-datetime-edit {
+  min-width: 0;
+  text-align: left;
+  padding: 0;
+}
+
+@media (max-width: 720px) {
+  .page {
+    gap: 15px;
+    width: 100%;
+    padding-bottom: 12px;
+  }
+  .hero {
+    display: block;
+    padding: 2px 0 1px;
+  }
+  .hero h1 {
+    font-size: clamp(24px, 6.9vw, 30px);
+    line-height: 1.13;
+    letter-spacing: -.045em;
+    margin: 7px 0 9px;
+    overflow-wrap: anywhere;
+  }
+  .hero p {
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 100%;
+  }
+  .toolbar {
+    padding: 17px 16px 16px;
+    border-radius: 18px;
+  }
+  .sectionHeading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 11px;
+  }
+  .sectionHeading h2 {
+    font-size: 21px;
+    margin-top: 4px;
+    line-height: 1.18;
+  }
+  .datePill {
+    align-self: flex-start;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    border-radius: 12px;
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin-top: 16px;
+  }
+  .filters > label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    min-width: 0;
+    line-height: 1.4;
+  }
+  .filters input,
+  .filters select {
+    width: 100%;
+    height: 48px;
+    margin-top: 0;
+    padding: 0 12px;
+    border-radius: 11px;
+    font-size: 16px; /* Prevent automatic Safari zoom on focus. */
+  }
+  .applyButton {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 47px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+  .helper {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .stats { gap: 10px; }
+  .overallStat, .stat {
+    min-width: 0;
+    min-height: 108px;
+    padding: 14px 13px;
+  }
+  .overallStat strong, .stat strong {font-size: 28px;}
+  .overallStat > span, .stat > span {line-height: 1.35;}
+  .recordHeader h2 {font-size: 20px;}
+  .mobileCard, .punchGrid > div {min-width: 0;}
+}
+
+@media (max-width: 430px) {
+  .filters {grid-template-columns: minmax(0, 1fr);}
+  .filters > label,
+  .filters > button {grid-column: 1 / -1;}
+  .hero h1 {font-size: 26px;}
+  .datePill {font-size: 11px;}
+  .overallStat, .stat {min-height: 100px;}
+  .mobileBottom {grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
+
+/* Work Mate – FINAL compact phone filters (visual-only; no request/attendance logic changes).
+   Keep Safari native date pickers usable without overlapping fields. */
+@media (max-width: 720px) {
+  .toolbar {
+    padding: 15px 15px 14px;
+  }
+  .sectionHeading {
+    gap: 7px;
+  }
+  .sectionHeading h2 {
+    font-size: 20px;
+  }
+  .datePill {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 10px 11px;
+    margin-top: 12px;
+  }
+  .filters > label {
+    grid-column: auto;
+    gap: 5px;
+    min-width: 0;
+    font-size: 12px;
+  }
+  .filters input,
+  .filters select {
+    width: 100%;
+    height: 43px;
+    min-height: 43px;
+    padding: 0 9px;
+    margin: 0;
+    border-radius: 10px;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 16px;
+    line-height: normal;
+  }
+  .filters input[type="date"] {
+    /* iOS Safari date strings + picker affordance fit in half-width fields. */
+    font-size: 14px;
+    letter-spacing: -0.025em;
+    padding-inline: 7px;
+    overflow: hidden;
+  }
+  .filters input[type="date"]::-webkit-date-and-time-value,
+  .filters input[type="date"]::-webkit-datetime-edit {
+    min-width: 0;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-align: left;
+  }
+  .filters select {
+    font-size: 15px;
+    text-overflow: ellipsis;
+  }
+  .filters > .applyButton {
+    grid-column: auto;
+    width: 100%;
+    min-width: 0;
+    height: 43px;
+    min-height: 43px;
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .helper {
+    margin-top: 9px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+}
+@media (max-width: 359px) {
+  /* Very narrow devices: preserve full date value + native picker. */
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .filters > label,
+  .filters > .applyButton {
+    grid-column: 1 / -1;
+  }
+  .filters input[type="date"] {
+    font-size: 16px;
+  }
+}

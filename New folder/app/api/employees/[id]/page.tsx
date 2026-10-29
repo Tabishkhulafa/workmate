@@ -1,0 +1,6 @@
+import { requireAdmin } from '@/lib/access';
+import { Shell } from '@/components/shell';
+import Link from 'next/link';
+import {FacePhotoViewer} from '@/components/face-photo-viewer';
+export default async function EmployeeDetail({params}:{params:Promise<{id:string}>}){const {id}=await params;const {profile,supabase}=await requireAdmin();const {data,error}=await supabase.from('profiles').select('id,full_name,employee_code,email,phone,role,designation,department_id,is_active').eq('id',id).maybeSingle();
+return <Shell name={profile.full_name||'Administrator'} role={profile.role}><div className="eyebrow">EMPLOYEE RECORD</div><h1>{data?.full_name||'Employee'}</h1>{error||!data?<div className="notice error">Record unavailable or access denied.</div>:<div className="card"><div className="details">{Object.entries(data).filter(([k])=>k!=='id').map(([k,v])=><div key={k}><small>{k.replaceAll('_',' ')}</small><b>{String(v??'—')}</b></div>)}</div><p className="muted small">Sensitive banking and identity records are intentionally not exposed by this basic web viewer. HR-only details require a separately audited endpoint.</p></div>}{data&&<><p><Link className="buttonlink" href={'/employees/'+data.id+'/edit'}>Edit employee</Link></p><FacePhotoViewer employeeId={data.id}/></>}<p><Link href="/employees">← Employee directory</Link></p></Shell>}

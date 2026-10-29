@@ -1,0 +1,1 @@
+Combined source: latest user-provided web source + face approval/viewer patch. Stop dev server; keep .env.local. Extract all files into C:\workmate-web including components/face-photo-viewer.tsx. Run npm.cmd install, npm.cmd run lint, npm.cmd run build, npm.cmd run dev. This package is not feature-complete parity with Android.

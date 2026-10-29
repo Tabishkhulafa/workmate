@@ -1,0 +1,32 @@
+@"
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+.face-venv/
+.face-convert-venv/
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+out/
+
+# Production builds
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# Logs
+*.log
+
+# Private keys
+*.pem
+*.key
+*.jks
+*.keystore
+
+"@ | Add-Content .gitignore

@@ -1,0 +1,7 @@
+'use client';
+import {useState} from 'react';
+export function FunctionPanel({endpoint,fields,actionLabel,defaults}:{endpoint:string;fields:{name:string;label:string;type?:string;options?:string[]}[];actionLabel:string;defaults?:Record<string,string>}){
+ const [status,setStatus]=useState('');const [loading,setLoading]=useState(false);
+ async function send(e:React.FormEvent<HTMLFormElement>){e.preventDefault();setLoading(true);setStatus('');const fd=new FormData(e.currentTarget);const body=Object.fromEntries(fd.entries());try{const res=await fetch('/api/proxy/'+endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const json=await res.json();if(!res.ok||json.error)throw Error(json.error||'Request failed');setStatus('Request submitted. Verify its final status in the relevant record.');}catch(e){setStatus(e instanceof Error?e.message:'Request failed')}finally{setLoading(false)}}
+ return <form className="card w3form" onSubmit={send}><div className="formgrid">{fields.map(f=><label key={f.name}>{f.label}{f.options?<select name={f.name} defaultValue={defaults?.[f.name]||f.options[0]}>{f.options.map(o=><option key={o} value={o}>{o.replaceAll('_',' ')}</option>)}</select>:<input required name={f.name} type={f.type||'text'} defaultValue={defaults?.[f.name]||''}/>}</label>)}</div><button disabled={loading}>{loading?'Submitting...':actionLabel}</button>{status&&<p role="status" className="notice">{status}</p>}</form>
+}

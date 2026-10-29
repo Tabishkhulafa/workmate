@@ -1,0 +1,153 @@
+/* Header-only styles. Does not touch attendance or profile business logic. */
+.topbar.topbar {
+  min-height: 82px;
+  height: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 14px clamp(16px, 3.2vw, 42px);
+  background: linear-gradient(100deg, #ffffff 15%, #f6f8ff 100%);
+  border-bottom: 1px solid #e5e9f3;
+}
+.workspace {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.workspaceSymbol {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(140deg, #2245aa, #745de4);
+  border-radius: 13px;
+  font-size: 13px;
+  letter-spacing: -0.04em;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: 0 6px 16px rgb(65 79 182 / 15%);
+}
+.workspaceText {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.workspaceText span {
+  color: #7c8495;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+.workspaceText strong {
+  color: #1f2d46;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.profileLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(100%, 340px);
+  min-width: 0;
+  padding: 7px 11px 7px 7px;
+  background: #fff;
+  color: #1a273b;
+  border: 1px solid #e3e9f3;
+  border-radius: 18px;
+  box-shadow: 0 5px 20px rgb(29 39 60 / 5%);
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+.profileLink:hover {
+  border-color: #c4d1ee;
+  background: #fbfcff;
+  box-shadow: 0 8px 24px rgb(29 39 60 / 9%);
+}
+.profileLink:focus-visible {
+  outline: 3px solid #90b4f8;
+  outline-offset: 3px;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  border-radius: 13px;
+  background: linear-gradient(140deg, #dfd9ff, #cae8ff);
+  color: #303a83;
+  font-size: 15px;
+  font-weight: 900;
+}
+.profileText {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.profileText strong {
+  display: block;
+  max-width: 222px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profileText span {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef0ff;
+  color: #5041aa;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.035em;
+}
+.chevron {
+  flex-shrink: 0;
+  color: #8190a8;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+@media (max-width: 800px) {
+  .topbar.topbar {
+    min-height: 66px;
+    padding: 9px 12px;
+    gap: 8px;
+  }
+  .workspaceSymbol {
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
+  }
+  .workspaceText strong { font-size: 13px; }
+  .workspaceText span { font-size: 9px; }
+  .profileLink {
+    gap: 7px;
+    padding: 5px 7px 5px 5px;
+    border-radius: 13px;
+    max-width: 62%;
+  }
+  .avatar {
+    width: 35px;
+    height: 35px;
+    flex-basis: 35px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+  .profileText strong { max-width: 140px; font-size: 11px; }
+  .profileText span { font-size: 9px; padding: 2px 6px; }
+  .chevron { display: none; }
+}
+@media (max-width: 375px) {
+  .workspaceText { display: none; }
+  .profileLink { max-width: calc(100% - 50px); }
+  .profileText strong { max-width: 155px; }
+}

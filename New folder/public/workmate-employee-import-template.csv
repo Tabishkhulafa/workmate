@@ -1,0 +1,2 @@
+name,email,mobile,department,role,designation,current_address,permanent_address,emergency_contact_1_name,emergency_contact_1_relation,emergency_contact_1_phone,blood_group
+Sample Employee,sample@example.com,9999999999,IT,EMPLOYEE,Executive,,,,,,

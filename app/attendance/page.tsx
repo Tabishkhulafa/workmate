@@ -1,0 +1,167 @@
+import { requireAdmin } from '@/lib/access';
+import { Shell } from '@/components/shell';
+import Link from 'next/link';
+import ResponsiveAttendanceList from './responsive-attendance-list';
+import {normalizeAttendanceRow} from '@/lib/attendance-rules';
+import {classifyPunchSite, type AttendanceSites} from '@/lib/attendance-location';
+import {attendanceLocationSelection, ALL_WORK_LOCATIONS, type WorkmateLocation} from '@/lib/attendance-location-filter';
+import {attendanceStatus,attendanceIsLate,attendanceFilterMatch,attendanceFilterLabel,parseAttendanceFilter, type AttendanceFilter} from '@/lib/attendance-filters';
+import {applyShiftAwareCutoff,isOverviewPresent} from '@/lib/attendance-overview-status';
+type Row={employee_id:string;full_name:string|null;employee_code:string|null;department_name:string|null;effective_status:string;day_type?:string|null;attendance:Record<string,unknown>|null;sites?:AttendanceSites};
+
+export default async function Attendance({searchParams}:{searchParams:Promise<{date?:string;search?:string;department?:string;status?:string;location?:string}>}){
+ const {profile,supabase}=await requireAdmin();const p=await searchParams;
+ const date=/^\d{4}-\d{2}-\d{2}$/.test(p.date||'')?p.date!:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const [report,activeHolidayLookup,locationLookup]=await Promise.all([
+  supabase.functions.invoke('organisation-attendance-report',{body:{date}}),
+  supabase.from('holidays').select('id').eq('holiday_date',date).eq('is_active',true).limit(1),
+  supabase.from('office_locations').select('id,name,is_default').eq('is_active',true).order('name'),
+ ]);
+ const {data,error}=report;
+ const holidayError=activeHolidayLookup.error;
+ const activeHoliday=(activeHolidayLookup.data??[]).length>0;
+ const original=data as {success?:boolean;rows?:Row[];departments?:{id:string;name:string}[];error?:string}|null;
+ const overviewNow=new Date();
+ const response=original?{...original,rows:(original.rows??[]).map(row=>normalizeAttendanceRow(row,activeHoliday))}:null;
+ const locations=(locationLookup.data||[]) as WorkmateLocation[];
+ const location=attendanceLocationSelection(locations,p.location);
+ let locationError:string|null=locationLookup.error?.message||(!location.valid?'Invalid work location filter.':null);
+ const assignedById=new Map<string,string|null>();
+ const departmentById=new Map<string,string|null>();
+ if(response?.success && (response.rows||[]).length && !locationError){
+  // Scope assignment lookup to employees already authorised by organisation-attendance-report.
+  const ids=(response.rows||[]).map(row=>row.employee_id);
+  for(let start=0;start<ids.length;start+=200){
+   const result=await supabase.from('profiles').select('id,work_location_id,department_id').in('id',ids.slice(start,start+200));
+   if(result.error){locationError='Employee location assignments cannot be verified.';break;}
+   for(const person of result.data||[]){assignedById.set(person.id,person.work_location_id);departmentById.set(person.id,person.department_id);}
+  }
+  if(assignedById.size!==ids.length)locationError='Some employee location assignments cannot be verified.';
+ }
+ if(process.env.NODE_ENV==='development') console.info('[WM_DIAG] pre-cutoff',JSON.stringify({date,success:response?.success,holiday:activeHoliday,locationError,rows:response?.rows?.length,notMarked:response?.rows?.filter(r=>r.effective_status==='NOT_MARKED').length}));
+ // Read-only, shift-aware UI cutoff. Unknown shifts remain Not Marked (never guessed Absent).
+ if(response?.success && !locationError && response.rows?.length && !activeHoliday){
+  const [assignResult,overrideResult,shiftResult,settingsResult]=await Promise.all([
+   supabase.from('shift_assignments').select('shift_id,scope,employee_id,department_id,effective_from,effective_to,created_at').eq('is_active',true).lte('effective_from',date),
+   supabase.from('shift_overrides').select('scope,employee_id,department_id,start_time,start_date,end_date,created_at').eq('is_active',true).lte('start_date',date).gte('end_date',date),
+   supabase.from('shifts').select('id,name,start_time').eq('is_active',true),
+   supabase.from('attendance_settings').select('late_grace_minutes').eq('is_active',true).order('created_at',{ascending:false}).limit(1),
+  ]);
+  if(assignResult.error||overrideResult.error||shiftResult.error||settingsResult.error){
+   locationError='Shift information unavailable; attendance status cannot safely be calculated.';
+  }else{
+   const assignments=(assignResult.data||[]).filter(a=>!a.effective_to||a.effective_to>=date);
+   const overrides=overrideResult.data||[];
+   const shifts=new Map((shiftResult.data||[]).map(sh=>[sh.id,sh.start_time]));
+   const defaults=(shiftResult.data||[]).filter(sh=>String(sh.name).trim().toLowerCase()==='general shift');
+   const defaultShiftStart=defaults.length===1?defaults[0].start_time:null;
+   const grace=settingsResult.data?.[0]?.late_grace_minutes;
+   const validGrace=typeof grace==='number' && Number.isInteger(grace) && grace>=0 ? grace : null;
+   const recent=<T extends {created_at:string}>(items:T[]):T|undefined=>items.sort((a,b)=>b.created_at.localeCompare(a.created_at))[0];
+   const choose=<T extends {scope:string;employee_id:string|null;department_id:string|null;created_at:string}>(items:T[],id:string,deptId:string|null):T|undefined=>
+    recent(items.filter(i=>i.scope==='EMPLOYEE'&&i.employee_id===id))||
+    (deptId?recent(items.filter(i=>i.scope==='DEPARTMENT'&&i.department_id===deptId)):undefined)||
+    recent(items.filter(i=>i.scope==='ORGANISATION'));
+   const diag={unmarked:0,converted:0,starts:{} as Record<string,number>};
+   response.rows=response.rows.map(row=>{
+    const deptId=departmentById.get(row.employee_id)||null;
+    const override=choose(overrides,row.employee_id,deptId);
+    const assignment=choose(assignments,row.employee_id,deptId);
+    const start=override?.start_time||(assignment?shifts.get(assignment.shift_id):defaultShiftStart);
+    const originalRow=(original?.rows||[]).find(r=>r.employee_id===row.employee_id)||row;
+    const calculated=applyShiftAwareCutoff(row,originalRow,date,overviewNow,start??null,validGrace);
+    if(row.effective_status==='NOT_MARKED') {
+     diag.unmarked++;
+     const time=start??'UNRESOLVED'; diag.starts[time]=(diag.starts[time]||0)+1;
+     if(calculated.effective_status==='ABSENT') diag.converted++;
+    }
+    if (process.env.NODE_ENV === 'development' &&
+    row.effective_status === 'NOT_MARKED') {
+  console.info('[WM_DIAG] ROW', JSON.stringify({
+    shiftStart: start,
+    normalized: row.effective_status,
+    original: originalRow.effective_status,
+    dayType: originalRow.day_type,
+    attendance: originalRow.attendance,
+    calculated: calculated.effective_status,
+    serverTime: overviewNow.toISOString()
+  }));
+}
+return calculated;
+   });
+   if(process.env.NODE_ENV==='development') console.info('[WM_DIAG] applied',JSON.stringify({date,grace:validGrace,...diag}));
+  }
+ }
+ const dept=p.department||'',term=(p.search||'').toLowerCase();
+ const baseRows=(response?.rows||[]).filter(r=>!locationError&&(location.selected===ALL_WORK_LOCATIONS||assignedById.get(r.employee_id)===location.selected)&&(!dept||r.department_name===dept)&&(!term||`${r.full_name||''} ${r.employee_code||''}`.toLowerCase().includes(term)));
+ const selected=parseAttendanceFilter(p.status);
+ const rows=baseRows.filter(r=>selected==='PRESENT'?isOverviewPresent(r):attendanceFilterMatch(r,selected));
+ // Organisation Edge Function does not currently include the authoritative site IDs.
+ // Fetch only those IDs and assignment IDs for employees already authorized by the report.
+ // No database writes, location rule changes, or GPS bypasses.
+ if(response?.success && rows.length && !locationError){
+  const employeeIds=rows.map(row=>row.employee_id);
+  const [punchResult]=await Promise.all([
+   supabase.from('attendance').select('employee_id,clock_in_location_id,clock_out_location_id').eq('attendance_date',date).in('employee_id',employeeIds),
+  ]);
+  if(punchResult.error){
+   // Avoid mislabelling anybody as On-site/Off-site if verification data is incomplete.
+   locationError='Location comparison is temporarily unavailable. Punch timings and attendance statuses are unaffected.';
+  }else{
+      const punchById=new Map((punchResult.data??[]).map(item=>[item.employee_id,item]));
+   const siteNames=new Map(locations.map(item=>[item.id,item.name]));
+   for(const row of rows){
+    const details=punchById.get(row.employee_id);
+    const assignedId=assignedById.get(row.employee_id);
+    const inPunch=row.attendance?.clock_in_at ?? row.attendance?.clock_in_time;
+    const outPunch=row.attendance?.clock_out_at ?? row.attendance?.clock_out_time;
+    const punched=(value:unknown)=>typeof value==='string'&&value.trim().length>0;
+    if(!assignedById.has(row.employee_id)){
+     // Missing authorized profile must not masquerade as an unassigned location.
+     const unknown={match:'UNKNOWN' as const,actualSite:null};
+     row.sites={clockIn:punched(inPunch)?unknown:null,clockOut:punched(outPunch)?unknown:null};
+     continue;
+    }
+    row.sites={
+     clockIn:classifyPunchSite(punched(inPunch),assignedId,details?.clock_in_location_id,siteNames),
+     clockOut:classifyPunchSite(punched(outPunch),assignedId,details?.clock_out_location_id,siteNames),
+    };
+   }
+  }
+ }
+ const params=new URLSearchParams({date,department:dept,search:p.search||'',status:selected,location:location.selected});
+ const allParams=new URLSearchParams({date,department:dept,search:p.search||'',location:location.selected});
+ const reportLink=(filter:AttendanceFilter)=>'/attendance?'+new URLSearchParams({...Object.fromEntries(allParams),status:filter}).toString()+'#employee-list';
+ const buckets=['Present','Half day','Absent','In progress','Missing Clock Out','Not marked'] as const;
+ const tones=['#16a34a','#f59e0b','#ef4444','#2563eb','#f97316','#a1a1aa'];
+ const counts=buckets.map(k=>baseRows.filter(r=>attendanceFilterLabel(attendanceStatus(r))===k).length);
+ const presentOverviewCount=baseRows.filter(isOverviewPresent).length; // Includes the In Progress subset.
+ const total=baseRows.length;
+ let running=0;
+ const segments=counts.map((v,i)=>{
+  const start=running;running+=total>0?100*v/total:0;
+  return `${tones[i]} ${start}% ${running}%`;
+ });
+ const departments=[...new Set(baseRows.map(r=>r.department_name||'Unassigned'))].sort();
+ const deptSummary=departments.map(name=>({name,items:baseRows.filter(r=>(r.department_name||'Unassigned')===name)}));
+ const lateCount=baseRows.filter(attendanceIsLate).length;
+ const metrics:{filter:AttendanceFilter;name:string;value:number;tone:string}[]=[
+  {filter:'ALL',name:'Staff',value:total,tone:'slate'},
+  ...buckets.map((name,i)=>({filter:attendanceStatus({effective_status:name==='Missing Clock Out'?'MISSING_CHECKOUT':name.replaceAll(' ','_')}) as AttendanceFilter,name,value:name==='Present'?presentOverviewCount:counts[i],tone:['green','amber','red','blue','orange','slate'][i]})),
+  {filter:'LATE',name:'Late',value:lateCount,tone:'orange'},
+ ];
+ return <Shell name={profile.full_name||'Administrator'} role={profile.role}><div className="eyebrow">LIVE REPORTING</div><h1>Organisation Attendance</h1><p className="muted">Same Supabase attendance data as Android. No sample records.</p>
+ <form className="reportfilters"><label>Date<input type="date" name="date" defaultValue={date}/></label><label>Location<select name="location" defaultValue={location.selected}><option value={ALL_WORK_LOCATIONS}>All locations</option>{locations.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Department<select name="department" defaultValue={dept}><option value="">All departments</option>{(response?.departments||[]).map(d=><option key={d.id} value={d.name}>{d.name}</option>)}</select></label><label>Search<input name="search" defaultValue={p.search||''} placeholder="Employee name/code"/></label><button>Apply</button></form>
+ {error||holidayError||locationError||!response?.success?<div className="notice error">Unable to load authorized report: {response?.error||error?.message||holidayError?.message||locationError||'Unknown error'}</div>:<><div className="statgrid wm-filter-statgrid">{metrics.map(metric=><Link aria-current={selected===metric.filter?'true':undefined} aria-label={`Show ${metric.name} employees (${metric.value})`} href={reportLink(metric.filter)} className={`stat wm-filter-stat wm-filter-stat--${metric.tone}`} key={metric.filter}><strong>{metric.value}</strong><span>{metric.name}</span><small>View employees {'\u2192'}</small></Link>)}</div><section className="wm-analytics-grid" aria-label="Attendance analytics"><div className="card wm-analytics-panel"><h2>Attendance distribution</h2><p className="muted small">Chart categories are exclusive. The Present summary also includes In Progress staff.</p><div className="wm-donut-layout"><div className="wm-donut" role="img" aria-label={buckets.map((b,i)=>`${b}: ${counts[i]}`).join(', ')} style={{background:total>0?`conic-gradient(${segments.join(',')})`:'#e4e4e7'}}><div className="wm-donut-hole"><strong>{total}</strong><span>Employees</span></div></div><div className="wm-legend">{buckets.map((label,i)=><Link href={reportLink(metrics[i+1].filter)} className="wm-legend-row wm-legend-link" key={label}><span className="wm-swatch" style={{background:tones[i]}}/><span>{i===0?'Completed present':label}</span><strong>{counts[i]}</strong><small>{total?Math.round(counts[i]*100/total):0}%</small></Link>)}</div></div></div><div className="card wm-analytics-panel"><h2>Department-wise attendance</h2><p className="muted small">Same department filter and date as the table below.</p><div className="wm-dept-chart">{deptSummary.map(({name,items})=><div className="wm-dept-row" key={name}><div className="wm-dept-title"><strong>{name}</strong><span>{items.length} staff</span></div><div className="wm-dept-track" aria-label={`${name}: ${items.length} staff`}>{buckets.map((label,i)=>{const count=items.filter(r=>attendanceFilterLabel(attendanceStatus(r))===label).length;return <span key={label} title={`${label}: ${count}`} style={{width:`${items.length?100*count/items.length:0}%`,background:tones[i]}}/>})}</div></div>)}{deptSummary.length===0&&<p className="muted">No employees match the selected filters.</p>}</div></div></section><section id="employee-list" className="wm-report-filter-summary" aria-live="polite"><div><span className="wm-report-filter-kicker">Employee list</span><h2>{attendanceFilterLabel(selected)} <small>({rows.length})</small></h2><p className="muted small">Click any summary card to view only employees in that category, using the current date, department and search filters.</p></div>{selected!=='ALL'&&<Link className="buttonlink" href={'/attendance?'+allParams.toString()+'#employee-list'}>Clear category</Link>}</section><div className="reportactions" style={{display:'flex',gap:'12px',flexWrap:'wrap',alignItems:'end'}}>
+  <a className="buttonlink" href={'/api/attendance/export?'+params.toString()+'&format=xlsx'}>Download Daily Excel</a>
+  <form action="/api/attendance/monthly-export" method="get" style={{display:'flex',gap:'10px',alignItems:'end',flexWrap:'wrap',margin:0}}>
+   <input type="hidden" name="location" value={location.selected}/><input type="hidden" name="department" value={dept}/><input type="hidden" name="search" value={p.search||''}/><label style={{display:'grid',gap:4,fontSize:'0.82rem',fontWeight:700}}>Monthly report
+    <input type="month" name="month" required defaultValue={date.slice(0,7)} max={new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).slice(0,7)}/>
+   </label>
+   <input type="hidden" name="department" value={dept}/><input type="hidden" name="search" value={p.search||''}/>
+   <button type="submit">Download Monthly Excel</button>
+  </form>
+ </div><p className="muted small" style={{marginTop:'6px'}}>Daily Excel and Monthly Excel follow the selected location. Monthly report keeps Present, Absent, Approved Leave, Half-day, Weekly Off and Not Marked separate. </p>{locationError&&<p className="notice">{locationError}</p>}<ResponsiveAttendanceList rows={rows} date={date}/></>}
+ </Shell>;
+}
+

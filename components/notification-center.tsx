@@ -1,0 +1,188 @@
+'use client';
+import Link from 'next/link';
+import {createPortal} from 'react-dom';
+import styles from './notification-center.module.css';
+import {useCallback,useEffect,useRef,useState} from 'react';
+import {Bell,BellRing,Check,Smartphone,Trash2,X} from 'lucide-react';
+
+type WorkmateAlert={id:string;category:string;event_type:string;title:string;body:string;href:string;created_at:string;read_at:string|null};
+type Feed={items:WorkmateAlert[];unread:number;error?:string};
+const when=(v:string)=>new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',hour:'numeric',minute:'2-digit'}).format(new Date(v));
+const safeUrl=(href:string)=>href.startsWith('/')&&!href.startsWith('//')?href:'/dashboard';
+const recentSeen=(id:string)=>{try{return sessionStorage.getItem(`wm-notification-${id}`)==='1'}catch{return false}};
+const setSeen=(id:string)=>{try{sessionStorage.setItem(`wm-notification-${id}`,'1')}catch{}};
+const vapidPublic=process.env.NEXT_PUBLIC_WORKMATE_VAPID_PUBLIC_KEY||'';
+function urlBase64ToUint8Array(value:string):Uint8Array<ArrayBuffer>{
+ const padded=value+'='.repeat((4-value.length%4)%4);
+ const binary=atob(padded.replace(/-/g,'+').replace(/_/g,'/'));
+ const bytes=new Uint8Array(new ArrayBuffer(binary.length));
+ for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+ return bytes;
+}
+export default function NotificationCenter(){
+ const [open,setOpen]=useState(false);
+ const [mounted,setMounted]=useState(false);
+ const [feed,setFeed]=useState<Feed>({items:[],unread:0});
+ const [toast,setToast]=useState<WorkmateAlert|null>(null);
+ const [error,setError]=useState('');
+ const [pushEnabled,setPushEnabled]=useState(false);
+ const [pushBusy,setPushBusy]=useState(false);
+ const [clearing,setClearing]=useState(false);
+ const [pushTest,setPushTest]=useState('');
+ const initial=useRef(false);
+ useEffect(()=>{setMounted(true)},[]);
+ useEffect(()=>{
+  if(!open)return;
+  const previous=document.body.style.overflow;
+  document.body.style.overflow='hidden';
+  const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape')setOpen(false)};
+  document.addEventListener('keydown',onKey);
+  return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',onKey)};
+ },[open]);
+ const refresh=useCallback(async()=>{
+  try{
+   const res=await fetch('/api/notifications',{cache:'no-store',credentials:'same-origin'});
+   if(!res.ok)return;
+   const data=await res.json() as Feed;
+   setFeed(data);
+   const current=data.items.find(item=>!item.read_at&&!recentSeen(item.id));
+   if(current){
+    // An already pending request from before login is visible in the inbox, not an intrusive old popup.
+    if(initial.current||Date.now()-new Date(current.created_at).getTime()<120000){
+     setToast(current);
+     setTimeout(()=>setToast(previous=>previous?.id===current.id?null:previous),9000);
+    }
+    data.items.forEach(item=>setSeen(item.id));
+   }
+   initial.current=true;
+  }catch{/* offline; next poll retries */}
+ },[]);
+ useEffect(()=>{
+  // Keep approval alerts responsive while the workspace is visible. Pause polling
+  // in background tabs to avoid unnecessary auth and database round trips.
+  const refreshVisible=()=>{if(document.visibilityState==='visible')void refresh();};
+  refreshVisible();
+  const timer=setInterval(refreshVisible,15000);
+  window.addEventListener('focus',refreshVisible);
+  document.addEventListener('visibilitychange',refreshVisible);
+  return()=>{
+   clearInterval(timer);
+   window.removeEventListener('focus',refreshVisible);
+   document.removeEventListener('visibilitychange',refreshVisible);
+  };
+ },[refresh]);
+ useEffect(()=>{
+  if(!('serviceWorker'in navigator))return;
+  navigator.serviceWorker.getRegistration('/workmate-sw.js').then(async reg=>{
+   try{setPushEnabled(Boolean(await reg?.pushManager.getSubscription()))}catch{}
+  }).catch(()=>{});
+ },[]);
+ async function markRead(id:string){
+  const response=await fetch('/api/notifications',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  if(response.ok){setFeed(prev=>({items:prev.items.map(item=>item.id===id?{...item,read_at:new Date().toISOString()}:item),unread:Math.max(0,prev.unread-(prev.items.some(item=>item.id===id&&!item.read_at)?1:0))}));}
+ }
+ async function clearAll(){
+  if(clearing||feed.items.length===0)return;
+  if(!window.confirm('Clear all notifications from your inbox? This cannot be undone.'))return;
+  setClearing(true);setError('');
+  try{
+   const response=await fetch('/api/notifications',{method:'DELETE',credentials:'same-origin',cache:'no-store'});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw new Error(result.error||'Could not clear notifications');
+   setFeed({items:[],unread:0});
+   setToast(null);
+   await refresh();
+  }catch(e){setError(e instanceof Error?e.message:'Unable to clear notifications')}
+  finally{setClearing(false)}
+ }
+ async function enablePush(){
+  setError('');setPushBusy(true);
+  try{
+   if(!vapidPublic)throw Error('Mobile push keys are not configured by the administrator yet. Dashboard alerts still work.');
+   if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window))throw Error('Push not available in this browser. On iPhone, add Work Mate to the Home Screen first.');
+   const permission=await Notification.requestPermission();
+   if(permission!=='granted')throw Error('Allow notifications in the browser or phone settings.');
+   // register() can resolve before the worker has finished activating.
+   // PushManager.subscribe() must run only against an ACTIVE registration.
+   const reg=await navigator.serviceWorker.register('/workmate-sw.js',{scope:'/'});
+   let timeoutId:ReturnType<typeof setTimeout>|undefined;
+   const activeReg=await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_,reject)=>{
+     timeoutId=setTimeout(()=>reject(new Error('Notification worker did not activate. Reload the page and try again.')),15000);
+    }),
+   ]).finally(()=>{if(timeoutId!==undefined)clearTimeout(timeoutId)});
+   if(activeReg.scope!==reg.scope||activeReg.active?.state!=='activated'){
+    throw Error('Notification service worker is not active. Reload the page and try again.');
+   }
+   const existing=await activeReg.pushManager.getSubscription();
+   const sub=existing||await activeReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(vapidPublic)});
+   const response=await fetch('/api/notifications/subscriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub.toJSON())});
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error(result.error||'Could not register this device');
+   setPushEnabled(true);
+  }catch(e){setError(e instanceof Error?e.message:'Push setup failed')}
+  finally{setPushBusy(false)}
+ }
+ async function sendTest(){
+  setPushTest('Sending…');
+  try{const r=await fetch('/api/notifications/test',{method:'POST'});const data=await r.json().catch(()=>({}));setPushTest(r.ok&&data.sent>0?'Test sent to your device':data.error||'No subscribed device received it');}catch{setPushTest('Test request failed')}
+ }
+ async function disablePush(){
+  setError('');setPushBusy(true);
+  try{
+   const reg=await navigator.serviceWorker.getRegistration('/workmate-sw.js');
+   const sub=await reg?.pushManager.getSubscription();
+   if(sub){await fetch('/api/notifications/subscriptions',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe();}
+   setPushEnabled(false);
+  }catch(e){setError(e instanceof Error?e.message:'Could not disable notifications')}
+  finally{setPushBusy(false)}
+ }
+ return <>
+  <button type="button" aria-label={`Notifications, ${feed.unread} unread`} aria-expanded={open}
+   aria-haspopup="dialog" onClick={()=>setOpen(value=>!value)} className={styles.trigger}>
+   {feed.unread>0?<BellRing size={19}/>:<Bell size={19}/>}<span className={styles.triggerText}>Alerts</span>
+   {feed.unread>0&&<strong className={styles.unreadBadge}>{feed.unread>99?'99+':feed.unread}</strong>}
+  </button>
+  {mounted&&open&&createPortal(<div className={styles.overlay}>
+    <button type="button" aria-label="Close notifications" onClick={()=>setOpen(false)} className={styles.backdrop}/>
+    <section role="dialog" aria-modal="true" aria-labelledby="wm-notifications-heading" className={styles.panel}>
+      <header className={styles.panelHeader}>
+        <div className={styles.panelTitle}>
+          <span className={styles.panelIcon}><Bell size={19}/></span>
+          <div><h2 id="wm-notifications-heading">Notifications</h2><p>{feed.unread} unread · Request updates and reminders</p></div>
+        </div>
+        <button type="button" aria-label="Close notifications" className={styles.close} onClick={()=>setOpen(false)}><X size={19}/></button>
+      </header>
+      <div className={styles.scrollArea}>
+       <div className={styles.pushActions}>
+        <button type="button" disabled={pushBusy} onClick={()=>void (pushEnabled?disablePush():enablePush())} className={styles.pushButton}>
+          <Smartphone size={16}/>{pushBusy?'Saving…':pushEnabled?'Disable phone push':'Enable phone push'}
+        </button>
+        {pushEnabled&&<button type="button" disabled={pushBusy} onClick={()=>void sendTest()} className={styles.pushButton}>Send test push</button>}
+        {feed.items.length>0&&<button type="button" disabled={clearing} onClick={()=>void clearAll()}
+          className={styles.clearAll} aria-label="Clear all my notifications">
+          <Trash2 size={15}/>{clearing?'Clearing…':'Clear all'}
+        </button>}
+       </div>
+       {pushTest&&<p role="status" className={styles.info}>{pushTest}</p>}
+       {error&&<p role="alert" className={styles.error}>{error}</p>}
+       {feed.items.length===0?<div className={styles.empty}><Bell size={24}/><strong>All caught up</strong><span>No notifications yet.</span></div>:
+        <div className={styles.feed}>{feed.items.map(item=><article key={item.id} className={`${styles.item} ${!item.read_at?styles.unread:''}`}>
+         <div className={styles.itemTop}><strong>{item.title}</strong><time dateTime={item.created_at}>{when(item.created_at)}</time></div>
+         <p>{item.body}</p>
+         <div className={styles.itemActions}>
+          <Link href={safeUrl(item.href)} onClick={()=>{void markRead(item.id);setOpen(false)}}>View request</Link>
+          {!item.read_at&&<button type="button" onClick={()=>void markRead(item.id)} className={styles.markRead}><Check size={13}/> Mark read</button>}
+         </div>
+        </article>)}</div>}
+      </div>
+    </section>
+  </div>,document.body)}
+  {toast&&mounted&&createPortal(<aside role="status" aria-live="polite" className={styles.toast}>
+    <div className={styles.toastHead}><strong>{toast.title}</strong><button type="button" aria-label="Dismiss notification popup" onClick={()=>setToast(null)}><X size={17}/></button></div>
+    <p>{toast.body}</p>
+    <Link href={safeUrl(toast.href)} onClick={()=>{void markRead(toast.id);setToast(null)}}>Open request</Link>
+  </aside>,document.body)}
+ </>;
+}

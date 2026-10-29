@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.vercel
+.face-venv
+.face-convert-venv
+.venv
+venv
+__pycache__
+*.pyc
+*.pyd
+*.dll
+*.log
+*.zip
+*.bak
+verify-face-parity.py

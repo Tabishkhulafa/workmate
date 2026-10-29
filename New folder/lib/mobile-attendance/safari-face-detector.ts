@@ -1,0 +1,15 @@
+﻿"use client";
+import type {FaceBox} from './browser-face-model';
+// MediaPipe Tasks Vision Face Detector, loaded as an ESM external in Safari (avoids Webpack).
+type Detection={boundingBox?:{originX:number;originY:number;width:number;height:number}};
+type Detector={detectForVideo(video:HTMLVideoElement,ts:number):{detections:Detection[]};close():void};
+let promise:Promise<Detector>|undefined;
+export async function loadSafariDetector():Promise<Detector>{if(!promise)promise=(async()=>{
+ const url='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/+esm';
+ // `webpackIgnore` prevents Next from attempting to bundle external ESM.
+ const mod=await import(/* webpackIgnore: true */ url) as {FilesetResolver:{forVisionTasks(url:string):Promise<unknown>};FaceDetector:{createFromOptions(wasm:unknown,options:unknown):Promise<Detector>}};
+ const wasm=await mod.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm');
+ return mod.FaceDetector.createFromOptions(wasm,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'VIDEO',minDetectionConfidence:.7});
+})();return promise.catch(e=>{promise=undefined;throw e;});}
+export async function detectOneFace(video:HTMLVideoElement):Promise<FaceBox>{if(!video.videoWidth||!video.videoHeight)throw Error('Camera has no video frames');const detector=await loadSafariDetector(),faces=detector.detectForVideo(video,performance.now()).detections;if(faces.length!==1)throw Error(`Exactly one face required (found ${faces.length})`);const b=faces[0].boundingBox;if(!b||b.width<70||b.height<70)throw Error('Move closer to the camera');return {x:b.originX,y:b.originY,width:b.width,height:b.height};}
+
